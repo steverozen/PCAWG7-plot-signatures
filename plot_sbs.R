@@ -1,12 +1,10 @@
-#!/usr/bin/Rscript
-
 ###########################################################################
 ###########################################################################
 # Code to plot unstranded SBS (single base substitution) spectra and signatures
 #
-# 2018 09 14
+# 2018 09 17
 # 
-# v0.1
+# v0.2
 # 
 # An alpha version
 # 
@@ -28,10 +26,6 @@
 ###########################################################################
 ###########################################################################
 
-
-## input: indel.catalog.csv 
-args = commandArgs(trailingOnly=TRUE)
-inputfile = args[1]
 
 class.col  <- c('#03bcee',
                 '#010101',
@@ -113,9 +107,22 @@ plot_snvs <- function(counts, display.name, mut.type=NULL, classes=TRUE, grid.li
   }
 }
 
-plot_snvs_file <- function(inputfile, outputfile = NULL){
-	data <- read.csv(inputfile)
-	names.data <- read.csv(inputfile, header = F, stringsAsFactors = F)
+# Plot 96-channel mutational signatures using COSMIC conventions. 
+#
+# CAUTION: the input file format, inlucing the order of rows must
+# be identical to that use on the PCAWG7 site on Synapse, *and 
+# ths is NOT checked*
+plot_snvs_file <- function(inputfile, # Must be in csv format
+                                      # Filename must end in .csv
+                                      
+                           also.all.on.one.page=F
+                           # Set this to T to also print out all signatures in a
+                           # single pdf
+                           )
+{
+  require(Cairo)
+  data <- read.csv(inputfile) # Note - no checking that inputfile is correct!
+  names.data <- read.csv(inputfile, header = F, stringsAsFactors = F)
 	names.data <- t(names.data[1,])
 	names(data) <- names.data
 
@@ -134,59 +141,35 @@ plot_snvs_file <- function(inputfile, outputfile = NULL){
 	
 	## generate seperate png files
 	outputfolder <- gsub('\\.csv', '', inputfile)
+	
+	if (!file.exists(outputfolder)){
+	  dir.create(outputfolder)
+	}
+	
 	for (i in 3:ncol(data)){
 	  png(paste(outputfolder, "/", colnames(data)[i], ".png", sep=""), width=12, height=2.75, units = 'in', res = 300)
 	  par(mar=c(1.8,0.5,2.2,0), oma=c(0,0,0,0))
 	  mut.type = gsub('>.*','',data[,1])
-	  # if (colnames(data)[i] == 'SBS44'){
-	  #   plot_snvs(data[,i], 'SBS60', mut.type=mut.type)
-	  # } else if (colnames(data)[i] == 'SBS60'){
-	  #   plot_snvs(data[,i], 'SBS44', mut.type=mut.type)
-	  # } else {
-	  #   plot_snvs(data[,i], colnames(data)[i], mut.type=mut.type)
-	  # }
 	  plot_snvs(data[,i], colnames(data)[i], mut.type=mut.type)
 	  dev.off()
 	}
 	
-	## remove artifact sigs
-	data <- data[,-c(52:67)]
-	## remove SBS27 and SBS43
-	data <- data[,-c(34,50)]
-	cairo_pdf(outputfile2, width=11.6929, height=8.2677, onefile=T)
-	par(mfrow=c(13,4), mar=c(0.3,0.1,0.3,0.1), oma=c(2,2,2,0))
-  for (i in 3:6){
-    plot_snvs(data[,i], colnames(data)[i], classes='top', grid.line=F)
-  }
-	for (i in 7:47){
-	  plot_snvs(data[,i], colnames(data)[i], classes=F, grid.line=F)
+	if (also.all.on.one.page) {
+	  ## remove artifact sigs
+	  data <- data[,-c(52:67)]
+	  ## remove SBS27 and SBS43
+	  data <- data[,-c(34,50)]
+	  cairo_pdf(outputfile2, width=11.6929, height=8.2677, onefile=T)
+	  par(mfrow=c(13,4), mar=c(0.3,0.1,0.3,0.1), oma=c(2,2,2,0))
+	  for (i in 3:6){
+	    plot_snvs(data[,i], colnames(data)[i], classes='top', grid.line=F)
+	  }
+	  for (i in 7:47){
+	    plot_snvs(data[,i], colnames(data)[i], classes=F, grid.line=F)
+	  }
+	  for (i in 48:51){
+	    plot_snvs(data[,i], colnames(data)[i], classes='bottom', grid.line=F)
+	  }
+	  invisible(dev.off())
 	}
-	for (i in 48:51){
-	  plot_snvs(data[,i], colnames(data)[i], classes='bottom', grid.line=F)
-	}
-	invisible(dev.off())
 }
-
-## plot the indel catalogs
-plot_snvs_file(inputfile)
-
-### for Jaegil's sigs combined plot
-if (FALSE){
-  inputfile = '~/Desktop/ICGC-upload/Mutation_Signatures/approach_2/SignatureAnalyzer_COMPOSITE_SBS_W96.signature.csv'
-  data <- read.csv(inputfile)
-  outputfile2 <- gsub('csv', 'combined.pdf', inputfile)
-  cairo_pdf(outputfile2, width=11.6929, height=9.2677, onefile=T)
-  par(mfrow=c(15,4), mar=c(0.3,0.1,0.3,0.1), oma=c(2,2,2,0))
-  for (i in 3:6){
-    plot_snvs(data[,i], colnames(data)[i], classes='top', grid.line=F)
-  }
-  for (i in 7:58){
-    plot_snvs(data[,i], colnames(data)[i], classes=F, grid.line=F)
-  }
-  for (i in 59:62){
-    plot_snvs(data[,i], colnames(data)[i], classes='bottom', grid.line=F)
-  }
-  invisible(dev.off())
-}
-
-
